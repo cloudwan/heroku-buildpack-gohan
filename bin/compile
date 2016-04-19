@@ -1,0 +1,66 @@
+#!/bin/bash
+# usage: bin/compile <build-dir> <cache-dir> <env-dir>
+
+set -eo pipefail
+
+TOOL=""
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+mkdir -p "$1" "$2"
+build=$(cd "$1/" && pwd)
+cache=$(cd "$2/" && pwd)
+env_dir=$3
+buildpack=$(cd "$(dirname $0)/.." && pwd)
+arch=$(uname -m|tr A-Z a-z)
+
+steptxt="----->"
+
+warn() {
+    echo -e >&2 "${YELLOW} !     $@${NC}"
+}
+
+step() {
+    echo "$steptxt $@"
+}
+
+start() {
+    echo -n "$steptxt $@... "
+}
+
+finished() {
+    echo "done"
+}
+
+
+if test -e $build/bin && ! test -d $build/bin
+then
+    warn ""
+    warn "File bin exists and is not a directory."
+    warn ""
+    exit 1
+fi
+
+mkdir -p $build/bin
+
+if ! test -d $cache/unzip-5.52
+then
+    cd $cache
+    step "Fetching and installing unzip"
+    curl -OL http://downloads.sourceforge.net/infozip/unzip552.tar.gz
+    step "Making unzip"
+    tar zxvf unzip552.tar.gz
+    cd unzip-5.52
+    cp unix/Makefile .
+    make generic
+    step "unzip installed"
+fi
+
+cd $build/bin
+curl -OL https://github.com/cloudwan/gohan/releases/download/pre-release/gohan-linux-amd64.zip
+unzip gohan-linux-amd64.zip
+
+rm -rf $build/.heroku
+
+mkdir -p $build/.profile.d
+echo 'PATH=$PATH:$HOME/bin' > $build/.profile.d/go.sh
